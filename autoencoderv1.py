@@ -6,8 +6,6 @@ import keras
 from keras.layers import Conv2D, Conv2DTranspose, Input, Flatten, Dense, Lambda, Reshape
 from keras.layers import BatchNormalization
 from keras.models import Model
-from keras.datasets import mnist
-from keras.losses import binary_crossentropy
 from keras import backend as K
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,6 +13,8 @@ import os
 from keras.preprocessing import image
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 
 img_width, img_height =256,256
 
@@ -66,7 +66,7 @@ path1 = 'C:\\Users\\lucas\\Desktop\\Codes_TCC\\Testes_Inception\\BaseBM\\validat
 # Data & model configuration
 
 batch_size = 32
-no_epochs = 2
+no_epochs = 1000
 validation_split = 0.2
 verbosity = 1
 latent_dim = 2
@@ -109,7 +109,7 @@ def sample_z(args):
   mu, sigma = args
   batch     = K.shape(mu)[0]
   dim       = K.int_shape(mu)[1]
-  eps       = K.random_normal(shape=(batch, dim))
+  eps       = K.random_normal(shape=(batch, dim))#, mean=0., stddev=0.1)
   return mu + K.exp(sigma / 2) * eps
 
 # Use reparameterization trick to ....??
@@ -150,20 +150,40 @@ vae.summary()
 # Define loss
 def kl_reconstruction_loss(true, pred):
   # Reconstruction loss
-  reconstruction_loss = binary_crossentropy(K.flatten(true), K.flatten(pred)) * img_width * img_height
+  reconstruction_loss = keras.losses.mean_squared_error(K.flatten(true), K.flatten(pred)) * img_width * img_height
+  print('Loss reconstrution: \n')
+  print(reconstruction_loss)
   # KL divergence loss
   kl_loss = 1 + sigma - K.square(mu) - K.exp(sigma)
   kl_loss = K.sum(kl_loss, axis=-1)
   kl_loss *= -0.5
+  print('Loss KL: \n')
+  print(kl_loss)
   # Total loss = 50% rec + 50% KL divergence loss
+  print('Loss somada: \n')
+  print(K.mean(reconstruction_loss + kl_loss))
   return K.mean(reconstruction_loss + kl_loss)
 
 # Compile VAE
-vae.compile(optimizer='adam', loss=kl_reconstruction_loss)
+vae.compile(optimizer=Adam(lr=1e-5), loss=kl_reconstruction_loss)
+
+mcp= ModelCheckpoint(filepath = 'vaemodelcheckpoint.h5',monitor='loss', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=5)
+
+rlr = ReduceLROnPlateau(monitor = 'loss', factor = 0.2, epochs = 10, verbose = 1)
+es = EarlyStopping(monitor =  'loss', min_delta = 1e-10, patience = 15, verbose = 1)
+
 
 # Train autoencoder
-vae.fit(input_train, input_train, epochs = no_epochs, batch_size = batch_size, validation_split = validation_split)
-
+history = vae.fit(input_train, input_train, epochs = no_epochs, batch_size = batch_size, validation_split = validation_split,callbacks = [es, rlr, mcp])
+vae.save_weights('vaepesosisic.h5')
+vae.save('vae.h5')
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 # =================
 # Results visualization
 # Credits for original visualization code: https://keras.io/examples/variational_autoencoder_deconv/
@@ -190,7 +210,7 @@ def viz_decoded(encoder, decoder, data):
   grid_y = np.linspace(-4, 4, num_samples)[::-1]
   for i, yi in enumerate(grid_y):
       for j, xi in enumerate(grid_x):
-          z_sample = np.array([[xi, yi]])
+          z_sample = np.array([[xi, yi]])#*0.1
           x_decoded = decoder.predict(z_sample)
           digit = x_decoded[0].reshape(img_width, img_height, num_channels)
           figure[i * img_width: (i + 1) * img_width,
