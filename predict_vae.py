@@ -71,9 +71,7 @@ path = 'C:\\Users\\lucas\\Desktop\\Codes_TCC\\Testes_Inception\\BaseBM\\testerap
 
 
 
-#########################################################################################
 
-# Data & model configuration
 
 batch_size = 32
 no_epochs = 1000
@@ -82,29 +80,25 @@ verbosity = 1
 latent_dim = 800
 num_channels = 3
 
-# Reshape data
+
 input_train,target_train = extract_vector(path)
 input_test,target_test =  extract_vector(path)
 input_shape = (img_height, img_width, num_channels)
 
-## Parse numbers as floats
+
 input_train = input_train.astype('float32')
 input_test = input_test.astype('float32')
 
 
 
 
-# Normalize data
+
 input_train = input_train / 255
 input_test = input_test / 255
 
 
 
-# # =================
-# # Encoder
-# # =================
 
-# Definition
 i       = Input(shape=input_shape, name='encoder_input')
 cx      = Conv2D(filters=8, kernel_size=3, strides=2, padding='same', activation='relu')(i)
 cx      = BatchNormalization()(cx)
@@ -123,19 +117,18 @@ sigma   = Dense(latent_dim, name='latent_sigma')(x)
 
 
 
-# Define loss
 def kl_reconstruction_loss(true, pred):
-  # Reconstruction loss
+  
   reconstruction_loss = keras.losses.mean_squared_error(K.flatten(true), K.flatten(pred)) * img_width * img_height
   print('Loss reconstrution: \n')
   print(reconstruction_loss)
-  # KL divergence loss
+  
   kl_loss = 1 + sigma - K.square(mu) - K.exp(sigma)
   kl_loss = K.sum(kl_loss, axis=-1)
   kl_loss *= -0.5
   print('Loss KL: \n')
   print(kl_loss)
-  # Total loss = 50% rec + 50% KL divergence loss
+  
   print('Loss somada: \n')
   print(K.mean(reconstruction_loss + kl_loss))
   return K.mean(reconstruction_loss + kl_loss)
@@ -145,7 +138,7 @@ vaee = load_model("vae.h5",custom_objects={'kl_reconstruction_loss': kl_reconstr
 print('Load \n\n\n\n\n\n')
 vaee.summary()
 
-lucas = vaee.predict(input_test)
+output = vaee.predict(input_test)
 
-a= array_to_img(lucas[3])
+a= array_to_img(output3])
 a.show()
