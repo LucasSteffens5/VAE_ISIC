@@ -9,6 +9,7 @@ Created on Fri Apr 17 17:35:45 2020
   
   
   Baseado em: https://keras.io/examples/variational_autoencoder_deconv/
+  e em : Https://www.machinecurve.com/index.php/2019/12/30/how-to-create-a-variational-autoencoder-with-keras/
 """
 
 
